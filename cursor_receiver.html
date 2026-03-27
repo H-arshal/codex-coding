@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cursor Receiver</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #cursor {
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      box-shadow: 0 0 10px white;
+      transition: top 0.03s linear, left 0.03s linear;
+      display: none;
+    }
+
+    #status {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: sans-serif;
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: none;
+    }
+
+    #ip-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: white;
+      font-family: sans-serif;
+      gap: 12px;
+      padding: 16px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    input {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      width: min(260px, 90vw);
+      text-align: center;
+    }
+
+    button {
+      padding: 10px 24px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ip-screen">
+    <h2>🖱️ Cursor Receiver</h2>
+    <p>Enter your laptop IP address</p>
+    <input type="text" id="ip-input" placeholder="e.g. 192.168.1.5" />
+    <button id="connect-btn">Connect</button>
+  </div>
+
+  <div id="cursor"></div>
+  <div id="status">Connecting...</div>
+
+  <script>
+    const ipScreen = document.getElementById('ip-screen');
+    const ipInput = document.getElementById('ip-input');
+    const connectButton = document.getElementById('connect-btn');
+    const cursor = document.getElementById('cursor');
+    const status = document.getElementById('status');
+
+    function showStatus(message, autoHide = false) {
+      status.textContent = message;
+      status.style.display = 'block';
+      if (autoHide) {
+        setTimeout(() => {
+          status.style.display = 'none';
+        }, 2000);
+      }
+    }
+
+    function connect() {
+      const ip = ipInput.value.trim();
+      if (!ip) {
+        alert('Please enter IP address');
+        return;
+      }
+
+      ipScreen.style.display = 'none';
+      cursor.style.display = 'block';
+      showStatus('Connecting...');
+
+      const ws = new WebSocket(`ws://${ip}:8765`);
+
+      ws.onopen = () => {
+        showStatus('✅ Connected to laptop!', true);
+      };
+
+      ws.onmessage = (event) => {
+        const [relX, relY] = event.data.split(',').map(Number);
+        if (Number.isNaN(relX) || Number.isNaN(relY)) return;
+
+        const x = relX * window.innerWidth;
+        const y = relY * window.innerHeight;
+        cursor.style.left = `${x}px`;
+        cursor.style.top = `${y}px`;
+      };
+
+      ws.onerror = () => {
+        showStatus('⚠️ Connection error. Check IP/Wi-Fi.');
+      };
+
+      ws.onclose = () => {
+        showStatus('❌ Disconnected. Reload to reconnect.');
+      };
+    }
+
+    connectButton.addEventListener('click', connect);
+    ipInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        connect();
+      }
+    });
+  </script>
+</body>
+</html>
